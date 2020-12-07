@@ -1,12 +1,10 @@
 #include <stdbool.h>
-#include <stdlib.h>
 #include <locale.h>
 #include <wchar.h>
 #include <err.h>
 
 
 #include "arg.h"
-#include "256eq.h"
 #include "chars.h"
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -218,23 +216,6 @@ main(int argc, char **argv) {
 			blkpos(blk, &img, x, y);
 			select_chr(&c, blk);
 
-			uint32_t bg, fg;
-
-			bg = ((c.bg.r & 0xff ) << 16) +
-				((c.bg.g & 0xff) << 8) +
-				((c.bg.b & 0xff));
-			fg = ((c.fg.r & 0xff ) << 16) +
-				((c.fg.g & 0xff) << 8) +
-				((c.fg.b & 0xff));
-			printf("\033[%d8;5;%d;%d8;5;%dm%lc",
-					c.reverse ? 3 : 4,
-					nearest(fg),
-					c.reverse ? 4 : 3,
-					nearest(bg),
-					c.chr
-			);
-
-			continue;
 			printf("\033[%d8;2;%d;%d;%d;%d8;2;%d;%d;%dm%lc",
 					c.reverse ? 3 : 4,
 					c.bg.r, c.bg.g, c.bg.b,
