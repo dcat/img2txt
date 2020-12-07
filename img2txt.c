@@ -31,50 +31,36 @@ struct cell {
 };
 
 
-uint64_t
+int
 greyscale(struct rgba *c) {
 	return (0.3 * c->r) + (0.59 * c->g) + (0.11 * c->b);
-}
-
-int
-cmpfunc(const void *a, const void *b) {
-	return *(int*)a - *(int *)b;
 }
 
 void
 select_chr(struct cell *ret, struct rgba *buf) {
 	/* employ otsu's algorithm */
-	long total = 0;
-	int i;
-	long threshold;
 	int map[16];
-	struct rgba *p, *search;
-	int closest;
-	int x;
-	int fsum, bsum;
-	int n = 0;
-	uint64_t medf[16], medb[16];
+	struct rgba *p;
 	struct {
 		double r, g, b;
 	} fg, bg;
+	long total, threshold;
+	int closest, x, i;
+	int score, pscore;
 
-	search = p = (struct rgba *)buf;
-
-	for (i = 0; i < 15; i++, p++) {
-		//total += p->r + p->g + p->b;
-		total += greyscale(p);
-	}
-
-	threshold = total / 15;
 	p = (struct rgba *)buf;
+	for (i = total = 0; i < 15; i++, p++)
+		total += greyscale(p);
 
+	threshold = total / 16;
+
+	p = (struct rgba *)buf;
 	for (i = 0; i < 15; i++, p++)
 		map[i] = greyscale(p) >= threshold;
 
-	int score, pscore;
 	score = pscore = 0;
 
-	for (i = 0; i < sizeof(table)/sizeof(*table); i++) {
+	for (i = score = pscore = 0; i < sizeof(table)/sizeof(*table); i++) {
 		bzero(map, 16);
 		score = 0;
 
@@ -89,50 +75,41 @@ select_chr(struct cell *ret, struct rgba *buf) {
 	}
 
 	for (i = x = 0; i < 15; i++)
-		if  (map[i])
+		if (map[i])
 			x++;
 
-	//if (pscore < 2) {
 	if (x <= 2) {
 		closest = 0;
 
 		for (i = 0; i < 15; i++)
 			map[i] = i < 8;
+
+		x = 8;
 	}
 
 	bzero(&fg, sizeof(fg));
 	bzero(&bg, sizeof(bg));
 
 	p = (struct rgba *)buf;
-	int n1, n2;
-	n1 = n2 = 0;
 	for (i = 0; i < 15; i++, p++) {
 		if (map[i]) {
 			fg.r += p->r;
 			fg.g += p->g;
 			fg.b += p->b;
-			medf[n1] = greyscale(p);
-			n1++;
 		} else {
 			bg.r += p->r;
 			bg.g += p->g;
 			bg.b += p->b;
-			medb[n2] = greyscale(p);
-			n2++;
 		}
 	}
 
-	qsort(medf, n1, sizeof(int), cmpfunc);
-	qsort(medb, n2, sizeof(int), cmpfunc);
+	ret->fg.r = fg.r / x;
+	ret->fg.g = fg.g / x;
+	ret->fg.b = fg.b / x;
 
-
-	ret->fg.r = fg.r / n1;
-	ret->fg.g = fg.g / n1;
-	ret->fg.b = fg.b / n1;
-
-	ret->bg.r = bg.r / n2;
-	ret->bg.g = bg.g / n2;
-	ret->bg.b = bg.b / n2;
+	ret->bg.r = bg.r / (15 - x);
+	ret->bg.g = bg.g / (15 - x);
+	ret->bg.b = bg.b / (15 - x);
 
 	ret->reverse = table[closest].reverse;
 	ret->chr = table[closest].chr;
@@ -158,8 +135,6 @@ blkpos(struct rgba *ret, struct img *img, int x, int y) {
 
 struct img *
 resize(struct img *orig, struct img *new, int w, int h) {
-	int x, y;
-
 	new->data = malloc(orig->chn * w * h);
 	if (new->data == NULL)
 		err(1, "resize: malloc");
@@ -225,8 +200,7 @@ main(int argc, char **argv) {
 			);
 		}
 
-		printf("\033[0m");
-		putchar('\n');
+		puts("\033[0m");
 	}
 
 	return 0;
