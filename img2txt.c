@@ -3,9 +3,12 @@
 #include <wchar.h>
 #include <err.h>
 
-
 #include "arg.h"
 #include "chars.h"
+
+#define CHUNK_WIDTH 8
+#define CHUNK_HEIGHT 8
+#define CHUNK_SZ (CHUNK_WIDTH * CHUNK_HEIGHT)
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
@@ -39,32 +42,32 @@ greyscale(struct rgba *c) {
 void
 select_chr(struct cell *ret, struct rgba *buf) {
 	/* employ otsu's algorithm */
-	int map[16];
+	int map[CHUNK_SZ];
 	struct rgba *p;
 	struct {
 		double r, g, b;
 	} fg, bg;
-	long total, threshold;
+	size_t total, threshold;
 	int closest, x, i;
 	int score, pscore;
 
 	p = (struct rgba *)buf;
-	for (i = total = 0; i < 15; i++, p++)
+	for (i = total = 0; i < CHUNK_SZ - 0; i++, p++)
 		total += greyscale(p);
 
-	threshold = total / 16;
+	threshold = total / CHUNK_SZ;
 
 	p = (struct rgba *)buf;
-	for (i = 0; i < 15; i++, p++)
+	for (i = 0; i < CHUNK_SZ - 1; i++, p++)
 		map[i] = greyscale(p) >= threshold;
 
 	score = pscore = 0;
 
-	for (i = score = pscore = 0; i < sizeof(table)/sizeof(*table); i++) {
-		bzero(map, 16);
+	for (i = 0; i < sizeof(table)/sizeof(*table); i++) {
+		bzero(map, CHUNK_SZ);
 		score = 0;
 
-		for (x = 0; x < 15; x++)
+		for (x = 0; x < CHUNK_SZ - 1; x++)
 			if (map[x] == table[i].pattern[x])
 				score++;
 
@@ -74,24 +77,15 @@ select_chr(struct cell *ret, struct rgba *buf) {
 		}
 	}
 
-	for (i = x = 0; i < 15; i++)
+	for (i = x = 0; i < CHUNK_SZ; i++)
 		if (map[i])
 			x++;
-
-	if (x <= 2) {
-		closest = 0;
-
-		for (i = 0; i < 15; i++)
-			map[i] = i < 8;
-
-		x = 8;
-	}
 
 	bzero(&fg, sizeof(fg));
 	bzero(&bg, sizeof(bg));
 
 	p = (struct rgba *)buf;
-	for (i = 0; i < 15; i++, p++) {
+	for (i = 0; i < CHUNK_SZ; i++, p++) {
 		if (map[i]) {
 			fg.r += p->r;
 			fg.g += p->g;
@@ -107,9 +101,9 @@ select_chr(struct cell *ret, struct rgba *buf) {
 	ret->fg.g = fg.g / x;
 	ret->fg.b = fg.b / x;
 
-	ret->bg.r = bg.r / (15 - x);
-	ret->bg.g = bg.g / (15 - x);
-	ret->bg.b = bg.b / (15 - x);
+	ret->bg.r = bg.r / (CHUNK_SZ - x);
+	ret->bg.g = bg.g / (CHUNK_SZ - x);
+	ret->bg.b = bg.b / (CHUNK_SZ - x);
 
 	ret->reverse = table[closest].reverse;
 	ret->chr = table[closest].chr;
@@ -126,9 +120,9 @@ blkpos(struct rgba *ret, struct img *img, int x, int y) {
 	int i, j, n;
 	struct rgba *p;
 
-	for (p = ret, n = j = 0; j < 4; j++)
-		for (i = 0; i < 4; i++, n++)
-			*p++ = *pos(img, (x * 4) + i, (y * 4) + j);
+	for (p = ret, n = j = 0; j < CHUNK_HEIGHT; j++)
+		for (i = 0; i < CHUNK_WIDTH; i++, n++)
+			*p++ = *pos(img, (x * CHUNK_HEIGHT) + i, (y * CHUNK_HEIGHT) + j);
 
 	return p;
 }
@@ -181,11 +175,11 @@ main(int argc, char **argv) {
 	if (raw.data == NULL)
 		err(1, "stbi_load");
 
-	resize(&raw, &img, width * 4, height * 4);
+	resize(&raw, &img, width * CHUNK_WIDTH, height * CHUNK_HEIGHT);
 
-	for (y = 0; y < img.h / 4; y++) {
-		for (x = 0; x < img.w / 4; x++) {
-			struct rgba blk[16];
+	for (y = 0; y < img.h / CHUNK_HEIGHT; y++) {
+		for (x = 0; x < img.w / CHUNK_WIDTH; x++) {
+			struct rgba blk[CHUNK_HEIGHT * CHUNK_WIDTH];
 			struct cell c;
 
 			blkpos(blk, &img, x, y);

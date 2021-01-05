@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <limits.h>
+#include <stdlib.h>
 
 struct rgb {
 	uint8_t b;
