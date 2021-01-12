@@ -143,6 +143,7 @@ resize(struct img *orig, struct img *new, int w, int h) {
 	return new;
 }
 
+static int dflag = 0;
 
 int
 main(int argc, char **argv) {
@@ -151,6 +152,7 @@ main(int argc, char **argv) {
 	struct img img;
 	int x, y;
 	char *argv0;
+	uint64_t tmp;
 
 	(void)setlocale(LC_ALL, "");
 
@@ -164,9 +166,26 @@ main(int argc, char **argv) {
 	case 'h':
 		height = atoi(ARGF());
 		break;
+	case 'd':
+		dflag = 1;
+		break;
 	default:
 		break;
 	} ARGEND
+
+	if (dflag) {
+		for (int i = 0; i < sizeof(table)/sizeof(*table); i++) {
+			tmp = 0;
+
+			for (x = 0; x < 64; x++)
+				if (table[i].pattern[x] & 1)
+					tmp |= (1UL << x);
+
+			printf("\t{ 0x%016llx, 0x%-6x }, /* U+%-6x %lc */\n",
+				tmp, table[i].chr, table[i].chr, table[i].chr);
+		}
+		return 0;
+	}
 
 	if (!argc)
 		return 1;
