@@ -129,7 +129,7 @@ blkpos(struct rgba *ret, struct img *img, int x, int y) {
 
 struct img *
 resize(struct img *orig, struct img *new, int w, int h) {
-	new->data = malloc(orig->chn * w * h);
+	new->data = malloc(4 * w * h);
 	if (new->data == NULL)
 		err(1, "resize: malloc");
 
